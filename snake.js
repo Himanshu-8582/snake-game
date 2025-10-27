@@ -1,105 +1,111 @@
-// board
-var blockSize = 25;
-var rows = 20;
-var columns = 20;
-var board;
-var context;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-// snake🐍
-var snakeX = blockSize * 5;
-var snakeY = blockSize * 5;
-// snake velocity🐍
-var velocityX = 0;
-var velocityY = 0;
-// snake growth🐍
-var snakeBody = [];
+const canvasWidth = 500;
+const canvasHeight = 500;
+const numberOfCells = 25; // Number of cells on the canvas
+const cellSize = Math.floor(canvasWidth / numberOfCells); // Calculate cell size
+const OFFSET = 0; // You can adjust this as needed
 
-// food🍕
-var foodX;
-var foodY;
-// gameOver
-var gameOver = false;
+const GREEN = 'rgb(173, 204, 96)';
+const DARK_GREEN = 'rgb(43, 51, 24)';
 
-window.onload = function () {
-    board = document.getElementById("board");
-    board.width = columns * blockSize;
-    board.height = rows * blockSize;
-    context = board.getContext("2d"); // used to draw on the board
+let snake = [{ x: 6, y: 9 }, { x: 5, y: 9 }, { x: 4, y: 9 }];
+let direction = { x: 1, y: 0 };
+let food = generateRandomPos();
+let score = 0;
+let gameInterval;
 
-    placeFood();
-    // to move snake🐍
-    document.addEventListener("keyup", changeDirection);
-    //update();
-    setInterval(update, 1000/10);
+// Load sounds
+const eatSound = new Audio('static_eat.mp3');
+const wallHitSound = new Audio('static_wall.mp3');
+
+function draw() {
+    ctx.fillStyle = GREEN;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    ctx.fillStyle = DARK_GREEN;
+    snake.forEach(segment => {
+        ctx.fillRect(OFFSET + segment.x * cellSize, OFFSET + segment.y * cellSize, cellSize, cellSize);
+    });
+
+    ctx.fillStyle = 'red';
+    ctx.fillRect(OFFSET + food.x * cellSize, OFFSET + food.y * cellSize, cellSize, cellSize);
+
+    // Draw score background
+    ctx.fillStyle = 'white'; // Background color for text
+    ctx.fillRect(OFFSET - 10, 10, 180, 50); // Adjust as needed
+
+    ctx.fillStyle = DARK_GREEN;
+    ctx.font = '40px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`Score: ${score}`, OFFSET, 20);  // Adjusted Y position here
 }
 
-function update () {
+function update() {
+    const head = { ...snake[0] };
+    head.x += direction.x;
+    head.y += direction.y;
 
-    if (gameOver) {
-        return;
-    }
+    snake.unshift(head);
 
-    context.fillStyle = "black"; // this will set the pen color to black
-    context.fillRect(0, 0, board.width, board.height);
-    // to draw food🍕
-    context.fillStyle = "red";
-    context.fillRect(foodX, foodY, blockSize, blockSize);
-    //to draw snake🐍
-    if (snakeX === foodX && snakeY === foodY) {
-        snakeBody.push([foodX, foodY]);// snake growth🐍
-        placeFood();// for next food at random position🍕
-    }
-    //to grow snake🐍🐍🐍
-    for (let i = snakeBody.length -1; i > 0; i--) {
-        snakeBody[i] = snakeBody[i-1];
-    }
-    // snake's second body🐍 = snake's head🐍
-    if (snakeBody.length) {
-        snakeBody[0] = [snakeX, snakeY];
+    if (head.x === food.x && head.y === food.y) {
+        score++;
+        food = generateRandomPos();
+        eatSound.play(); // Play eat sound
+    } else {
+        snake.pop();
     }
 
-    context.fillStyle = "lime";
-    snakeX += velocityX * blockSize;
-    snakeY += velocityY * blockSize;
-    context.fillRect(snakeX, snakeY, blockSize, blockSize);
-    for (let i = 0; i < snakeBody.length; i++) {
-       context.fillRect(snakeBody[i][0], snakeBody[i][1], blockSize, blockSize);
+    if (head.x < 0 || head.x >= numberOfCells || head.y < 0 || head.y >= numberOfCells || 
+        snake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
+        wallHitSound.play(); // Play wall hit sound
+        clearInterval(gameInterval);
+        alert('Game Over!');
     }
-    // gameOver conditions
-    if (snakeX < 0 || snakeX > columns * blockSize || snakeY < 0 || snakeY > rows * blockSize) {
-        gameOver = true;
-        alert("game over!");
-    }
-    for (i = 0; i < snakeBody.length; i++) {
-        if (snakeX === snakeBody[i][0] && snakeY === snakeBody[i][1]) {
-            gameOver = true;
-            alert("game over");
-        }
-    }
+
+    draw();
 }
 
-// to draw food at random position
-function placeFood() {
-    foodX = Math.floor(Math.random()* columns) * blockSize;
-    foodY = Math.floor(Math.random()* rows) * blockSize;
+function generateRandomPos() {
+    let pos;
+    do {
+        pos = { 
+            x: Math.floor(Math.random() * numberOfCells), 
+            y: Math.floor(Math.random() * numberOfCells) 
+        };
+    } while (snake.some(segment => segment.x === pos.x && segment.y === pos.y));
+    return pos;
 }
 
-// changeDirection⬅️➡️⬆️⬇️
-function changeDirection(event) {
-    if ((event.key === "w" || event.key === "ArrowUp") && velocityY !== 1) {
-        velocityX = 0;
-        velocityY = -1;
+document.addEventListener('keydown', (e) => {
+    switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+            if (direction.y === 0) direction = { x: 0, y: -1 };
+            break;
+
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+            if (direction.y === 0) direction = { x: 0, y: 1 };
+            break;
+
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+            if (direction.x === 0) direction = { x: -1, y: 0 };
+            break;
+
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+            if (direction.x === 0) direction = { x: 1, y: 0 };
+            break;
     }
-    else if ((event.key === "s" || event.key === "ArrowDown") && velocityY !== -1) {
-        velocityX = 0;
-        velocityY = 1;
-    }
-    else if ((event.key === "a" || event.key === "ArrowLeft") && velocityX !== 1) {
-        velocityX = -1;
-        velocityY = 0;
-    }
-    else if ((event.key === "d" || event.key === "ArrowRight") && velocityX !== -1) {
-        velocityX = 1;
-        velocityY = 0;
-    }
-}
+});
+
+
+gameInterval = setInterval(update, 200);
